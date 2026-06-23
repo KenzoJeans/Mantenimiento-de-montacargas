@@ -37,8 +37,8 @@ json_data = json.dumps(historial_mantenimiento)
 glb_base64 = ""
 
 # 'os.path.expanduser("~")' encuentra automáticamente la carpeta principal de tu usuario en Windows/Mac
-ruta_en_descargas_con_assets = os.path.expanduser("~/Downloads/assets/forklift_low_poly.glb")
-ruta_en_descargas_suelto = os.path.expanduser("~/Downloads/forklift_low_poly.glb")
+ruta_en_descargas_con_assets = os.path.expanduser("~/Downloads/assets/forklift_low_poly")
+ruta_en_descargas_suelto = os.path.expanduser("~/Downloads/forklift_low_poly")
 
 # 1. Intentamos buscarlo dentro de la carpeta assets en Descargas
 if os.path.exists(ruta_en_descargas_con_assets):
@@ -48,7 +48,7 @@ elif os.path.exists(ruta_en_descargas_suelto):
     ruta_final = ruta_en_descargas_suelto
 else:
     ruta_final = None
-    st.error("⚠️ No encontré el archivo .glb en tu carpeta de Descargas. Asegúrate de que se llame exactamente 'forklift_low_poly.glb'")
+    st.error("⚠️ No encontré el archivo .glb en tu carpeta de Descargas. Asegúrate de que se llame exactamente 'forklift_low_poly'")
 
 # Si lo encontró, lo procesamos para el lienzo 3D
 if ruta_final:
