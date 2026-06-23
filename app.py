@@ -18,7 +18,7 @@ def cargar_historial_desde_google_sheets():
     historial = {
         "default": {
             "titulo": "Instrucciones del Gemelo Digital",
-            "detalles": "Selecciona cualquiera de los pines flotantes de color azul/verde sobre el montacargas para desplegar las órdenes de servicio de planta en tiempo real."
+            "detalles": "Selecciona cualquiera de los pines flotantes de color sobre el montacargas para desplegar las órdenes de servicio de planta en tiempo real."
         }
     }
     
@@ -80,7 +80,7 @@ else:
     st.error("⚠️ Archivo `static/forklift_low_poly.glb` no detectado.")
  
 # =====================================================================
-# 3. INTERFAZ HTML + THREE.JS CON PINES DE TRÁFICO INTERACTIVOS
+# 3. INTERFAZ HTML + THREE.JS CON PINES AUTO-AJUSTABLES
 # =====================================================================
 three_js_interface = f"""
 <!DOCTYPE html>
@@ -136,7 +136,7 @@ three_js_interface = f"""
  
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf8fafc);
-    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / 560, 0.01, 1000);
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / 560, 0.01, 10000);
  
     const renderer = new THREE.WebGLRenderer({{ antialias: true }});
     renderer.setSize(container.clientWidth, 560);
@@ -154,11 +154,11 @@ three_js_interface = f"""
     let forkliftModel = null;
     const loader = new THREE.GLTFLoader();
     const dataURI = "{glb_data_uri}";
- 
     const listaPines = [];
  
-    function agregarPin3D(idComponente, x, y, z, colorHex) {{
-        const geo = new THREE.SphereGeometry(0.12, 16, 16);
+    // Función de creación con radio dinámico proporcional
+    function agregarPin3D(idComponente, x, y, z, colorHex, rPin) {{
+        const geo = new THREE.SphereGeometry(rPin, 16, 16);
         const mat = new THREE.MeshBasicMaterial({{
             color: colorHex,
             transparent: true,
@@ -195,12 +195,21 @@ three_js_interface = f"""
                 controls.update();
  
                 // =============================================================
-                // 📍 UBICACIÓN ESTRATÉGICA DE LOS PINES (Corregido a comentario JS)
+                // 📐 CÁLCULO DE PROPORCIONES EN TIEMPO REAL
                 // =============================================================
-                agregarPin3D('wheel', 0.8, -0.4, 0.6, 0x00adb5);       // Pin sobre llanta delantera
-                agregarPin3D('loader_car', 0.0, 0.5, -0.2, 0x3f51b5);  // Pin sobre motor/batería
-                agregarPin3D('mast', 0.0, 0.8, 0.8, 0xff9800);        // Pin sobre el mástil
-                agregarPin3D('fork', 0.0, -0.4, 1.5, 0xe91e63);        // Pin sobre las uñas/horquillas
+                const dimensionMaxima = Math.max(size.x, size.y, size.z);
+                const radioProporcional = dimensionMaxima * 0.04; // Pines al 4% del tamaño total
+ 
+                // Ubicaciones relativas usando el ancho (x), alto (y) y largo (z) del contenedor
+                const pX = size.x;
+                const pY = size.y;
+                const pZ = size.z;
+ 
+                // Posicionar pines saliendo de la superficie del modelo
+                agregarPin3D('wheel',      pX * 0.38,  -pY * 0.25,   pZ * 0.20, 0x00adb5, radioProporcional); // Llanta delantera
+                agregarPin3D('loader_car', 0.0,         pY * 0.15,  -pZ * 0.10, 0x3f51b5, radioProporcional); // Motor / Cabina
+                agregarPin3D('mast',       0.0,         pY * 0.30,   pZ * 0.35, 0xff9800, radioProporcional); // Mástil
+                agregarPin3D('fork',       0.0,        -pY * 0.30,   pZ * 0.65, 0xe91e63, radioProporcional); // Uñas
  
                 status.innerText = "🎯 Gemelo Digital Interactivo — Toca un Pin de color";
             }});
@@ -242,7 +251,7 @@ three_js_interface = f"""
         controls.update();
         
         tiempo += 0.05;
-        const escalaPulsante = 1 + Math.sin(tiempo) * 0.12;
+        const escalaPulsante = 1 + Math.sin(tiempo) * 0.15;
         listaPines.forEach(pin => {{
             pin.scale.set(escalaPulsante, escalaPulsante, escalaPulsante);
         }});
