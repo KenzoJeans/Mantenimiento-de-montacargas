@@ -1,14 +1,14 @@
-        import streamlit as st
+import streamlit as st
 import streamlit.components.v1 as components
 import json
 import base64
 import pathlib
- 
+
 st.set_page_config(page_title="Forklift Twin Pro", layout="wide", page_icon="🚜")
- 
+
 st.title("🚜 Gemelo Digital Operacional - Montacargas Pro")
 st.markdown("Ecosistema de Mantenimiento 4.0. Haz clic directamente sobre las piezas del modelo 3D para auditar su historial técnico.")
- 
+
 # 1. BASE DE DATOS DE MANTENIMIENTO
 historial_mantenimiento = {
     "default": {
@@ -28,20 +28,20 @@ historial_mantenimiento = {
         "detalles": "🟢 2026-01-10: Inspección de soldaduras críticas y anclajes de motor. Sin novedades estructurales."
     }
 }
- 
+
 json_data = json.dumps(historial_mantenimiento)
- 
+
 # 2. LEER EL MODELO Y CONVERTIR A BASE64 EN PYTHON
 glb_data_uri = ""
 ruta_glb = pathlib.Path(__file__).parent / "static" / "forklift_low_poly.glb"
- 
+
 if ruta_glb.exists():
     with open(ruta_glb, "rb") as f:
         b64 = base64.b64encode(f.read()).decode("utf-8")
     glb_data_uri = f"data:model/gltf-binary;base64,{b64}"
 else:
     st.error("⚠️ No se encontró `static/forklift_low_poly.glb` en el repositorio.")
- 
+
 # 3. HTML + THREE.JS
 three_js_interface = f"""
 <!DOCTYPE html>
@@ -95,63 +95,61 @@ three_js_interface = f"""
         <hr style="border:0;border-top:1px solid #e2e8f0;margin:15px 0;">
         <p id="part-details">Haz clic en cualquier componente del montacargas para desplegar las órdenes de servicio.</p>
     </div>
- 
+
     <script>
     const baseDatos = {json_data};
     const container = document.getElementById('canvas-container');
     const status    = document.getElementById('status');
     const bar       = document.getElementById('progress-bar');
- 
+
     // --- ESCENA ---
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf1f5f9);
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / 550, 0.01, 10000);
- 
+
     const renderer = new THREE.WebGLRenderer({{ antialias: true }});
     renderer.setSize(container.clientWidth, 550);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
- 
+
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
- 
+
     scene.add(new THREE.AmbientLight(0xffffff, 0.9));
     const dir = new THREE.DirectionalLight(0xffffff, 0.8);
     dir.position.set(5, 20, 10);
     scene.add(dir);
- 
-    // --- CARGA DIRECTA POR DATA URI (Evita errores de parseo manual) ---
+
+    // --- CARGA DIRECTA POR DATA URI ---
     let forkliftModel = null;
     const loader = new THREE.GLTFLoader();
     const dataURI = "{glb_data_uri}";
- 
+
     if (!dataURI) {{
         status.innerText = "❌ Modelo no encontrado en static/";
     }} else {{
         status.innerText = "⏳ Cargando geometría del gemelo digital...";
         bar.style.width = "40%";
- 
-        // Usamos .load directo pasando el URI base64 sin procesar
+
         loader.load(
             dataURI,
             (gltf) => {{
                 forkliftModel = gltf.scene;
                 scene.add(forkliftModel);
- 
-                // Centrado automático de cámara basado en las dimensiones reales del modelo
+
                 const box    = new THREE.Box3().setFromObject(forkliftModel);
                 const center = box.getCenter(new THREE.Vector3());
                 const size   = box.getSize(new THREE.Vector3());
                 forkliftModel.position.sub(center);
- 
+
                 const dist = Math.max(size.x, size.y, size.z) * 1.8;
                 camera.position.set(dist, dist * 0.8, dist);
- 
+
                 camera.lookAt(0, 0, 0);
                 controls.target.set(0, 0, 0);
                 controls.update();
- 
+
                 bar.style.width = "100%";
                 setTimeout(() => bar.style.display = 'none', 600);
                 status.innerText = "✅ Gemelo digital activo — toca una pieza";
@@ -168,24 +166,24 @@ three_js_interface = f"""
             }}
         );
     }}
- 
+
     // --- RAYCASTING AL HACER CLIC ---
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
- 
+
     window.addEventListener('click', (event) => {{
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x =  ((event.clientX - rect.left) / rect.width)  * 2 - 1;
         mouse.y = -((event.clientY - rect.top)  / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, camera);
- 
+
         if (forkliftModel) {{
             const hits = raycaster.intersectObjects(forkliftModel.children, true);
             if (hits.length > 0) {{
                 const pieza  = hits[0].object;
                 const nombre = pieza.name.toLowerCase();
                 status.innerText = "ID: " + pieza.name;
- 
+
                 let found = false;
                 for (let key in baseDatos) {{
                     if (nombre.includes(key)) {{
@@ -201,7 +199,7 @@ three_js_interface = f"""
             }}
         }}
     }});
- 
+
     // --- LOOP DE RENDER ---
     (function animate() {{
         requestAnimationFrame(animate);
@@ -212,5 +210,5 @@ three_js_interface = f"""
 </body>
 </html>
 """
- 
+
 components.html(three_js_interface, height=560)
