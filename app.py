@@ -1,13 +1,15 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import json
+import base64
+import os
 
 st.set_page_config(page_title="Forklift Twin Pro", layout="wide", page_icon="🚜")
 
 st.title("🚜 Gemelo Digital Operacional - Montacargas Pro")
 st.markdown("Ecosistema de Mantenimiento 4.0. Haz clic directamente sobre las piezas del modelo 3D para auditar su historial técnico.")
 
-# 1. BASE DE DATOS EN PYTHON (Modifica las claves según los IDs que descubras al dar clic)
+# 1. BASE DE DATOS EN PYTHON
 historial_mantenimiento = {
     "default": {
         "titulo": "Instrucciones de Inspección",
@@ -29,12 +31,21 @@ historial_mantenimiento = {
 
 json_data = json.dumps(historial_mantenimiento)
 
-# ======================================================================
-# 2. TU ENLACE DE GITHUB (Asegúrate de cambiar 'TU_USUARIO' y 'TU_REPO')
-# ======================================================================
-URL_TU_MODELO_GLB = "https://raw.githubusercontent.com/KenzoJeans/Mantenimiento-de-montacargas/refs/heads/main/assets/forklift_low_poly.glb"
+# 2. LECTURA Y CONVERSIÓN DEL ARCHIVO GLB LOCAL (Bypasando GitHub)
+glb_base64 = ""
+ruta_local = "forklift_low_poly.glb"
 
-# INTERFAZ EN EMBED
+# Si creaste una carpeta assets localmente, la buscamos ahí también
+if os.path.exists("assets/forklift_low_poly.glb"):
+    ruta_local = "assets/forklift_low_poly.glb"
+
+if os.path.exists(ruta_local):
+    with open(ruta_local, "rb") as f:
+        glb_base64 = base64.b64encode(f.read()).decode("utf-8")
+else:
+    st.error(f"⚠️ No se encontró el archivo '{ruta_local}' en tu computadora. Asegúrate de ponerlo en la misma carpeta que este script de Python.")
+
+# 3. INTERFAZ EN EMBED CON ENTRADA BINARIA
 three_js_interface = f"""
 <!DOCTYPE html>
 <html>
@@ -72,7 +83,7 @@ three_js_interface = f"""
 <body>
 
     <div id="canvas-container">
-        <div id="debug-log">Estado: Inicializando entorno 3D...</div>
+        <div id="debug-log">Estado: Decodificando binario local...</div>
     </div>
     
     <div id="sidebar-panel">
@@ -87,7 +98,7 @@ three_js_interface = f"""
         const container = document.getElementById('canvas-container');
         const log = document.getElementById('debug-log');
 
-        // ESCENA Y RENDERER
+        // CONFIGURACIÓN DE ESCENA
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf1f5f9);
 
@@ -102,7 +113,7 @@ three_js_interface = f"""
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        // ILUMINACIÓN REFORZADA (Para evitar que el modelo se vea negro)
+        // ILUMINACIÓN
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
         scene.add(ambientLight);
         
@@ -110,58 +121,55 @@ three_js_interface = f"""
         dirLight1.position.set(5, 20, 10);
         scene.add(dirLight1);
 
-        const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
-        dirLight2.position.set(-5, 10, -10);
-        scene.add(dirLight2);
-
-        // CARGADOR CON AUTO-ENFOQUE AUTOMÁTICO
         const loader = new THREE.GLTFLoader();
         let forkliftModel = null;
 
-        log.innerText = "Estado: Descargando modelo desde GitHub...";
+        // PROCESAR STRING BASE64 DESDE PYTHON
+        const rawBase64 = "{glb_base64}";
 
-        loader.load('{URL_TU_MODELO_GLB}', 
-            function(gltf) {{
+        if (rawBase64 !== "") {{
+            // Conversión interna a ArrayBuffer para Three.js
+            const binaryString = window.atob(rawBase64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {{
+                bytes[i] = binaryString.charCodeAt(i);
+            }}
+            const arrayBuffer = bytes.buffer;
+
+            // Inyección directa del modelo sin llamadas HTTP externo
+            loader.parse(arrayBuffer, '', function(gltf) {{
                 forkliftModel = gltf.scene;
                 scene.add(forkliftModel);
                 
-                // ALGORITMO DE AUTO-ENFOQUE COGNITIVO
+                // Enfoque automático de cámara
                 const box = new THREE.Box3().setFromObject(forkliftModel);
                 const center = box.getCenter(new THREE.Vector3());
                 const size = box.getSize(new THREE.Vector3());
                 
-                // Mover el modelo exactamente al origen (0,0,0)
                 forkliftModel.position.x += (forkliftModel.position.x - center.x);
                 forkliftModel.position.y += (forkliftModel.position.y - center.y);
                 forkliftModel.position.z += (forkliftModel.position.z - center.z);
                 
-                // Calcular la distancia óptima de la cámara según el volumen de la máquina
                 const maxDim = Math.max(size.x, size.y, size.z);
                 const cameraDist = maxDim * 1.8;
                 
-                // Ubicar la cámara en una esquina superior mirando al centro
                 camera.position.set(cameraDist, cameraDist * 0.8, cameraDist);
                 camera.lookAt(0, 0, 0);
                 
                 controls.target.set(0, 0, 0);
                 controls.update();
                 
-                log.innerText = "Estado: ¡Modelo cargado! Haz clic en una pieza.";
-            }},
-            function(xhr) {{
-                if (xhr.total > 0) {{
-                    const percent = Math.round((xhr.loaded / xhr.total * 100));
-                    log.innerText = "Descargando: " + percent + "%";
-                }}
-            }},
-            function(error) {{
+                log.innerText = "Estado: ¡Gemelo digital activo! Toca una pieza.";
+            }}, function(error) {{
+                log.innerText = "Error crítico al procesar la geometría 3D.";
                 console.error(error);
-                log.style.background = "rgba(220, 38, 38, 0.9)";
-                log.innerText = "Error: Enlace roto o archivo corrupto. Revisa la consola.";
-            }}
-        );
+            }});
+        }} else {{
+            log.innerText = "Error: Falta la cadena binaria del modelo.";
+        }}
 
-        // RAYCASTING
+        // EVENTO DE CLIC
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
@@ -178,7 +186,7 @@ three_js_interface = f"""
                     const piezaTocada = intersects[0].object;
                     const nombrePieza = piezaTocada.name.toLowerCase();
                     
-                    log.innerText = "Pieza detectada: " + piezaTocada.name;
+                    log.innerText = "ID de Pieza: " + piezaTocada.name;
 
                     let encontrada = false;
                     for (let clave in baseDatos) {{
@@ -192,7 +200,7 @@ three_js_interface = f"""
                     
                     if(!encontrada) {{
                         document.getElementById('part-title').innerText = "Pieza: " + piezaTocada.name;
-                        document.getElementById('part-details').innerHTML = "<i>Sin alertas críticas en esta sección. Todo opera bajo parámetros nominales.</i>";
+                        document.getElementById('part-details').innerHTML = "<i>Operando bajo parámetros nominales. No registra alertas en el sistema QR.</i>";
                     }}
                 }}
             }}
