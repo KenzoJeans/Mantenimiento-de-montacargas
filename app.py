@@ -56,7 +56,7 @@ def cargar_historial_desde_google_sheets():
                     "detalles": ""
                 }
             
-            linea_reporte = f"{estado} <b>{fecha}</b>: {descripcion} <br><small style='color:#64748b;'>👤 Operario: {tecnico}</small><br><br><hr style='border:0;border-top:1px dashed #e2e8f0;'>"
+            linea_reporte = f"{estado} <b>{fecha}</b>: {descripcion} <br><small style='color:#64748b;'>👤 Operario: {tecnico}</small><br><br><hr style='border:0;border-top:1px dashed #e2e8f0;'>"""
             historial[parte]["detalles"] += linea_reporte
             
     except Exception as e:
@@ -80,7 +80,7 @@ else:
     st.error("⚠️ Archivo `static/forklift_low_poly.glb` no detectado.")
  
 # =====================================================================
-# 3. INTERFAZ HTML + THREE.JS CON PINES AUTO-AJUSTABLES
+# 3. INTERFAZ HTML + THREE.JS (Pines reubicados con precisión)
 # =====================================================================
 three_js_interface = f"""
 <!DOCTYPE html>
@@ -156,7 +156,6 @@ three_js_interface = f"""
     const dataURI = "{glb_data_uri}";
     const listaPines = [];
  
-    // Función de creación con radio dinámico proporcional
     function agregarPin3D(idComponente, x, y, z, colorHex, rPin) {{
         const geo = new THREE.SphereGeometry(rPin, 16, 16);
         const mat = new THREE.MeshBasicMaterial({{
@@ -194,22 +193,27 @@ three_js_interface = f"""
                 controls.target.set(0, 0, 0);
                 controls.update();
  
-                // =============================================================
-                // 📐 CÁLCULO DE PROPORCIONES EN TIEMPO REAL
-                // =============================================================
                 const dimensionMaxima = Math.max(size.x, size.y, size.z);
-                const radioProporcional = dimensionMaxima * 0.04; // Pines al 4% del tamaño total
+                const radioProporcional = dimensionMaxima * 0.035; // Pines ligeramente más estilizados
  
-                // Ubicaciones relativas usando el ancho (x), alto (y) y largo (z) del contenedor
                 const pX = size.x;
                 const pY = size.y;
                 const pZ = size.z;
  
-                // Posicionar pines saliendo de la superficie del modelo
-                agregarPin3D('wheel',      pX * 0.38,  -pY * 0.25,   pZ * 0.20, 0x00adb5, radioProporcional); // Llanta delantera
-                agregarPin3D('loader_car', 0.0,         pY * 0.15,  -pZ * 0.10, 0x3f51b5, radioProporcional); // Motor / Cabina
-                agregarPin3D('mast',       0.0,         pY * 0.30,   pZ * 0.35, 0xff9800, radioProporcional); // Mástil
-                agregarPin3D('fork',       0.0,        -pY * 0.30,   pZ * 0.65, 0xe91e63, radioProporcional); // Uñas
+                // =============================================================
+                // 📍 AJUSTE DE COORDENADAS PRECISAS
+                // =============================================================
+                // Llantas (Cyan): Se movieron hacia atrás en Z y más centradas al eje de la rueda delantera
+                agregarPin3D('wheel',      pX * 0.32,  -pY * 0.20,   pZ * 0.15, 0x00adb5, radioProporcional); 
+                
+                // Cabina/Motor (Azul): Se bajó un poco más hacia el asiento/centro operativo
+                agregarPin3D('loader_car', 0.0,         pY * 0.05,  -pZ * 0.12, 0x3f51b5, radioProporcional); 
+                
+                // Mástil (Naranja): Se bajó drásticamente para quedar sobre los rieles de elevación frontales
+                agregarPin3D('mast',       0.0,         pY * 0.08,   pZ * 0.30, 0xff9800, radioProporcional); 
+                
+                // Uñas/Horquillas (Rosado): Se recortó su distancia en Z para que repose justo sobre el metal de la horquilla
+                agregarPin3D('fork',       0.0,        -pY * 0.32,   pZ * 0.46, 0xe91e63, radioProporcional); 
  
                 status.innerText = "🎯 Gemelo Digital Interactivo — Toca un Pin de color";
             }});
