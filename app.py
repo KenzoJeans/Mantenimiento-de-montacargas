@@ -1,8 +1,6 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import json
-import base64
-import pathlib
 
 st.set_page_config(page_title="Forklift Twin Pro", layout="wide", page_icon="🚜")
 
@@ -31,20 +29,8 @@ historial_mantenimiento = {
 
 json_data = json.dumps(historial_mantenimiento)
 
-# 2. LECTURA DEL MODELO .glb DESDE LA CARPETA assets/ DEL REPOSITORIO
-# ✅ Funciona tanto localmente como en Streamlit Cloud
-glb_base64 = ""
-
-ruta_glb = pathlib.Path(__file__).parent / "assets" / "forklift_low_poly.glb"
-
-if ruta_glb.exists():
-    with open(ruta_glb, "rb") as f:
-        glb_base64 = base64.b64encode(f.read()).decode("utf-8")
-else:
-    st.error(
-        "⚠️ Modelo 3D no encontrado en `assets/forklift_low_poly.glb`. "
-        "Asegúrate de subir el archivo al repositorio dentro de la carpeta `assets/`."
-    )
+# 2. URL del modelo — Streamlit sirve automáticamente la carpeta /static/
+GLB_URL = "app/static/forklift_low_poly.glb"
 
 # 3. INTERFAZ HTML + THREE.JS
 three_js_interface = f"""
@@ -84,7 +70,7 @@ three_js_interface = f"""
 <body>
 
     <div id="canvas-container">
-        <div id="debug-log">Estado: Decodificando modelo 3D...</div>
+        <div id="debug-log">Estado: Cargando modelo 3D...</div>
     </div>
 
     <div id="sidebar-panel">
@@ -99,7 +85,7 @@ three_js_interface = f"""
         const container = document.getElementById('canvas-container');
         const log = document.getElementById('debug-log');
 
-        // CONFIGURACIÓN DE ESCENA
+        // ESCENA
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf1f5f9);
 
@@ -120,28 +106,20 @@ three_js_interface = f"""
         dirLight.position.set(5, 20, 10);
         scene.add(dirLight);
 
+        // CARGA DEL MODELO POR URL (liviano, sin base64)
         const loader = new THREE.GLTFLoader();
         let forkliftModel = null;
 
-        // DECODIFICAR BASE64 → ArrayBuffer → Three.js (sin llamadas HTTP)
-        const rawBase64 = "{glb_base64}";
-
-        if (rawBase64 !== "") {{
-            const binaryString = window.atob(rawBase64);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {{
-                bytes[i] = binaryString.charCodeAt(i);
-            }}
-
-            loader.parse(bytes.buffer, '', function(gltf) {{
+        loader.load(
+            "{GLB_URL}",
+            function(gltf) {{
                 forkliftModel = gltf.scene;
                 scene.add(forkliftModel);
 
-                // Centrar y enfocar cámara automáticamente
+                // Centrar y enfocar cámara
                 const box = new THREE.Box3().setFromObject(forkliftModel);
                 const center = box.getCenter(new THREE.Vector3());
                 const size = box.getSize(new THREE.Vector3());
-
                 forkliftModel.position.sub(center);
 
                 const maxDim = Math.max(size.x, size.y, size.z);
@@ -152,13 +130,16 @@ three_js_interface = f"""
                 controls.update();
 
                 log.innerText = "✅ Gemelo digital activo — toca una pieza";
-            }}, function(error) {{
-                log.innerText = "❌ Error al procesar la geometría 3D";
+            }},
+            function(xhr) {{
+                const pct = Math.round((xhr.loaded / xhr.total) * 100);
+                log.innerText = "Cargando modelo: " + pct + "%";
+            }},
+            function(error) {{
+                log.innerText = "❌ Error al cargar el modelo 3D";
                 console.error(error);
-            }});
-        }} else {{
-            log.innerText = "❌ Cadena base64 vacía — revisa que el archivo .glb está en assets/";
-        }}
+            }}
+        );
 
         // DETECCIÓN DE CLIC SOBRE PIEZAS
         const raycaster = new THREE.Raycaster();
@@ -173,7 +154,6 @@ three_js_interface = f"""
 
             if (forkliftModel) {{
                 const intersects = raycaster.intersectObjects(forkliftModel.children, true);
-
                 if (intersects.length > 0) {{
                     const pieza = intersects[0].object;
                     const nombre = pieza.name.toLowerCase();
