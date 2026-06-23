@@ -155,12 +155,9 @@ three_js_interface = f"""
     const loader = new THREE.GLTFLoader();
     const dataURI = "{glb_data_uri}";
  
-    // Arreglo global para almacenar y animar nuestros pines interactivos
     const listaPines = [];
  
-    // --- FUNCIÓN PARA CREAR PINES INTERACTIVOS ---
     function agregarPin3D(idComponente, x, y, z, colorHex) {{
-        // Geometría de esfera para el Pin
         const geo = new THREE.SphereGeometry(0.12, 16, 16);
         const mat = new THREE.MeshBasicMaterial({{
             color: colorHex,
@@ -169,7 +166,7 @@ three_js_interface = f"""
         }});
         const pin = new THREE.Mesh(geo, mat);
         pin.position.set(x, y, z);
-        pin.name = idComponente; // Vinculado a la clave de Google Sheets
+        pin.name = idComponente;
         
         scene.add(pin);
         listaPines.push(pin);
@@ -198,7 +195,7 @@ three_js_interface = f"""
                 controls.update();
  
                 // =============================================================
-                # 📍 UBICACIÓN ESTRATÉGICA DE LOS PINES (Coordenadas relativas al centro)
+                // 📍 UBICACIÓN ESTRATÉGICA DE LOS PINES (Corregido a comentario JS)
                 // =============================================================
                 agregarPin3D('wheel', 0.8, -0.4, 0.6, 0x00adb5);       // Pin sobre llanta delantera
                 agregarPin3D('loader_car', 0.0, 0.5, -0.2, 0x3f51b5);  // Pin sobre motor/batería
@@ -210,7 +207,6 @@ three_js_interface = f"""
         }}, 50);
     }}
  
-    // --- DETECTOR DE CLICS EXCLUSIVO PARA LOS PINES ---
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
  
@@ -220,14 +216,12 @@ three_js_interface = f"""
         mouse.y = -((event.clientY - rect.top)  / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, camera);
  
-        // Validamos impactos únicamente contra los pines del arreglo
         const impactos = raycaster.intersectObjects(listaPines);
         
         if (impactos.length > 0) {{
             const pinTocado = impactos[0].object;
             const clave = pinTocado.name;
  
-            // Feedback visual rápido (hacerlo brillar temporalmente al tocar)
             pinTocado.material.opacity = 1.0;
             setTimeout(() => pinTocado.material.opacity = 0.85, 300);
  
@@ -242,13 +236,11 @@ three_js_interface = f"""
         }}
     }});
  
-    // --- ANIMACIÓN DE LOS PINES (Efecto de pulsación/respiración) ---
     let tiempo = 0;
     (function animate() {{
         requestAnimationFrame(animate);
         controls.update();
         
-        // Hacer que los pines pulsen de tamaño sutilmente para denotar interactividad
         tiempo += 0.05;
         const escalaPulsante = 1 + Math.sin(tiempo) * 0.12;
         listaPines.forEach(pin => {{
