@@ -32,7 +32,7 @@ json_data = json.dumps(historial_mantenimiento)
 # ======================================================================
 # 2. TU ENLACE DE GITHUB (Asegúrate de cambiar 'TU_USUARIO' y 'TU_REPO')
 # ======================================================================
-URL_TU_MODELO_GLB = "https://raw.githubusercontent.com/KenzoJeans/Mantenimiento-de-montacargas/main/assets/forklift_low_poly.glb"
+URL_TU_MODELO_GLB = "https://raw.githubusercontent.com/KenzoJeans/Mantenimiento-de-montacargas/refs/heads/main/assets/forklift_low_poly.glb"
 
 # INTERFAZ EN EMBED
 three_js_interface = f"""
