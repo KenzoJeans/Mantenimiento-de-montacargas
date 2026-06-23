@@ -33,7 +33,7 @@ json_data = json.dumps(historial_mantenimiento)
 
 # 2. CONFIGURA AQUÍ TU URL DE GITHUB
 # Mientras lo subes, el código usará un modelo alternativo de pruebas para no fallar
-URL_TU_MODELO_GLB = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb" 
+URL_TU_MODELO_GLB = "https://github.com/KenzoJeans/Mantenimiento-de-montacargas/raw/refs/heads/main/forklift_low_poly.glb" 
 # REEMPLAZA por tu link de GitHub cuando esté listo:
 # URL_TU_MODELO_GLB = "https://raw.githubusercontent.com/tu_usuario/tu_repo/main/assets/forklift_low_poly.glb"
 
