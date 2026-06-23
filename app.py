@@ -31,20 +31,29 @@ historial_mantenimiento = {
 
 json_data = json.dumps(historial_mantenimiento)
 
-# 2. LECTURA Y CONVERSIÓN DEL ARCHIVO GLB LOCAL (Bypasando GitHub)
+# ======================================================================
+# 2. LECTURA Y CONVERSIÓN AUTOMÁTICA DESDE TU CARPETA DE DESCARGAS
+# ======================================================================
 glb_base64 = ""
-ruta_local = "forklift_low_poly.glb"
 
-# Si creaste una carpeta assets localmente, la buscamos ahí también
-if os.path.exists("assets/forklift_low_poly.glb"):
-    ruta_local = "assets/forklift_low_poly.glb"
+# 'os.path.expanduser("~")' encuentra automáticamente la carpeta principal de tu usuario en Windows/Mac
+ruta_en_descargas_con_assets = os.path.expanduser("~/Downloads/assets/forklift_low_poly.glb")
+ruta_en_descargas_suelto = os.path.expanduser("~/Downloads/forklift_low_poly.glb")
 
-if os.path.exists(ruta_local):
-    with open(ruta_local, "rb") as f:
-        glb_base64 = base64.b64encode(f.read()).decode("utf-8")
+# 1. Intentamos buscarlo dentro de la carpeta assets en Descargas
+if os.path.exists(ruta_en_descargas_con_assets):
+    ruta_final = ruta_en_descargas_con_assets
+# 2. Si no, lo buscamos suelto directamente en Descargas
+elif os.path.exists(ruta_en_descargas_suelto):
+    ruta_final = ruta_en_descargas_suelto
 else:
-    st.error(f"⚠️ No se encontró el archivo '{ruta_local}' en tu computadora. Asegúrate de ponerlo en la misma carpeta que este script de Python.")
+    ruta_final = None
+    st.error("⚠️ No encontré el archivo .glb en tu carpeta de Descargas. Asegúrate de que se llame exactamente 'forklift_low_poly.glb'")
 
+# Si lo encontró, lo procesamos para el lienzo 3D
+if ruta_final:
+    with open(ruta_final, "rb") as f:
+        glb_base64 = base64.b64encode(f.read()).decode("utf-8")
 # 3. INTERFAZ EN EMBED CON ENTRADA BINARIA
 three_js_interface = f"""
 <!DOCTYPE html>
