@@ -12,9 +12,10 @@ st.title("🚜 Gemelo Digital Operacional - Montacargas Pro")
 st.markdown("Ecosistema de Mantenimiento 4.0. Haz clic en los **pines interactivos** del modelo 3D para auditar los reportes en tiempo real.")
 
 # =====================================================================
-# 1. CONEXIÓN EN VIVO A GOOGLE SHEETS + TRADUCCIÓN A ESPAÑOL
+# 1. CONEXIÓN EN VIVO A GOOGLE SHEETS + TRADUCCIÓN Y MÉTRICAS DINÁMICAS
 # =====================================================================
-def cargar_historial_desde_google_sheets():
+@st.cache_data(ttl=30)  # Recarga automáticamente cada 30 segundos
+def cargar_historial_y_metricas():
     historial = {
         "default": {
             "titulo": "Instrucciones del Gemelo Digital",
@@ -25,12 +26,30 @@ def cargar_historial_desde_google_sheets():
     ID_HOJA = "1uHS0iWNUf2ER5v67dQaoyM8284Ba5hUfEuKX7xt0lLQ" 
     SHEET_CSV_URL = f"https://docs.google.com/spreadsheets/d/{ID_HOJA}/export?format=csv"
     
+    # Valores por defecto para métricas
+    horometro_val = "1,482 Hrs"
+    total_reportes = 0
+    pct_preventivo = "100%"
+    
     try:
         df = pd.read_csv(SHEET_CSV_URL)
         df.columns = df.columns.str.strip()
         
         if 'Marca temporal' in df.columns:
             df = df.sort_values(by='Marca temporal', ascending=False)
+
+        total_reportes = len(df)
+        
+        # Extracción dinámica del último horómetro válido
+        if 'HOROMETRO' in df.columns:
+            horo_series = pd.to_numeric(df['HOROMETRO'], errors='coerce').dropna()
+            if not horo_series.empty:
+                horometro_val = f"{horo_series.iloc[0]:,.0f} Hrs"
+        
+        # Cálculo dinámico del % Preventivo vs Correctivo
+        if 'ESTADO' in df.columns and total_reportes > 0:
+            preventivos = df['ESTADO'].astype(str).str.upper().str.contains("PREV").sum()
+            pct_preventivo = f"{(preventivos / total_reportes * 100):.0f}%"
 
         for _, fila in df.iterrows():
             parte_raw = str(fila.get('COMPONENTE', '')).strip().lower()
@@ -76,25 +95,25 @@ def cargar_historial_desde_google_sheets():
     except Exception as e:
         print(f"Error procesando base de datos: {e}")
         
-    return json.dumps(historial)
+    return json.dumps(historial), horometro_val, total_reportes, pct_preventivo
 
-json_data = cargar_historial_desde_google_sheets()
+json_data, horometro_val, total_reportes, pct_preventivo = cargar_historial_y_metricas()
 
 # =====================================================================
 # 2. PROCESAMIENTO DEL MODELO 3D
 # =====================================================================
 glb_data_uri = ""
 ruta_glb = pathlib.Path(__file__).parent / "static" / "forklift_low_poly.glb"
- 
+
 if ruta_glb.exists():
     with open(ruta_glb, "rb") as f:
         b64 = base64.b64encode(f.read()).decode("utf-8")
     glb_data_uri = f"data:model/gltf-binary;base64,{b64}"
 else:
-    st.error("⚠️ Archivo `static/forklift_low_poly.glb` no detectado.")
+    st.error("⚠️ Archivo `static/forklift_low_poly.glb` no detectado. Asegúrate de colocarlo en el directorio correcto.")
 
 # =====================================================================
-# 3. INTERFAZ INTEGRADA (EVITA EL BLOQUEO DE CLICS)
+# 3. INTERFAZ INTEGRADA (THREE.JS + STREAMLIT COMPONENTS)
 # =====================================================================
 three_js_interface = f"""
 <!DOCTYPE html>
@@ -115,13 +134,13 @@ three_js_interface = f"""
         }}
         
         /* Estilos de Indicadores Métricos */
-        .metrics-container {{ display: flex; gap: 15px; margin-bottom: 25px; margin-top: 10px; }}
+        .metrics-container {{ display: flex; gap: 10px; margin-bottom: 20px; margin-top: 10px; }}
         .metric-card {{
-            flex: 1; background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;
+            flex: 1; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;
         }}
-        .metric-label {{ font-size: 12px; color: #64748b; font-weight: 600; }}
-        .metric-value {{ font-size: 24px; font-weight: bold; color: #0f172a; margin: 4px 0; }}
-        .metric-delta {{ font-size: 11px; color: #16a34a; background: #dcfce7; display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: 500; }}
+        .metric-label {{ font-size: 11px; color: #64748b; font-weight: 600; }}
+        .metric-value {{ font-size: 20px; font-weight: bold; color: #0f172a; margin: 4px 0; }}
+        .metric-delta {{ font-size: 10px; color: #16a34a; background: #dcfce7; display: inline-block; padding: 2px 5px; border-radius: 4px; font-weight: 500; }}
         
         /* Buscador manual */
         .selector-label {{ font-size: 13px; font-weight: 600; color: #475569; display: block; margin-bottom: 6px; }}
@@ -160,13 +179,18 @@ three_js_interface = f"""
         <div class="metrics-container">
             <div class="metric-card">
                 <div class="metric-label">⏱️ Horómetro Actual</div>
-                <div class="metric-value">1,482 Hrs</div>
-                <div class="metric-delta">↑ +42 Hrs esta sem.</div>
+                <div class="metric-value">{horometro_val}</div>
+                <div class="metric-delta">↑ En vivo</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label">🔋 Vida de Batería</div>
-                <div class="metric-value">94%</div>
-                <div class="metric-delta">↑ Óptimo</div>
+                <div class="metric-label">📋 Mantenimientos</div>
+                <div class="metric-value">{total_reportes}</div>
+                <div class="metric-delta">Total Reg.</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">🛡️ % Preventivo</div>
+                <div class="metric-value">{pct_preventivo}</div>
+                <div class="metric-delta">Óptimo</div>
             </div>
         </div>
         
@@ -191,34 +215,34 @@ three_js_interface = f"""
             </div>
         </div>
     </div>
- 
+
     <script>
     const baseDatos = {json_data};
     const container = document.getElementById('canvas-container');
     const status    = document.getElementById('status');
- 
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf8fafc);
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / 620, 0.01, 10000);
- 
+
     const renderer = new THREE.WebGLRenderer({{ antialias: true }});
     renderer.setSize(container.clientWidth, 620);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
- 
+
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
- 
+
     scene.add(new THREE.AmbientLight(0xffffff, 0.85));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
     dirLight.position.set(10, 20, 15);
     scene.add(dirLight);
- 
+
     let forkliftModel = null;
     const loader = new THREE.GLTFLoader();
     const dataURI = "{glb_data_uri}";
     const listaPines = [];
- 
+
     function agregarPin3D(idComponente, x, y, z, colorHex, rPin) {{
         const geo = new THREE.SphereGeometry(rPin, 16, 16);
         const mat = new THREE.MeshBasicMaterial({{ color: colorHex, transparent: true, opacity: 0.85 }});
@@ -228,48 +252,48 @@ three_js_interface = f"""
         scene.add(pin);
         listaPines.push(pin);
     }}
- 
+
     if (dataURI) {{
         setTimeout(() => {{
             const b64 = dataURI.split(',')[1];
             const binary = atob(b64);
             const bytes = new Uint8Array(binary.length);
             for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
- 
+
             loader.parse(bytes.buffer, '', (gltf) => {{
                 forkliftModel = gltf.scene;
                 scene.add(forkliftModel);
- 
+
                 const box    = new THREE.Box3().setFromObject(forkliftModel);
                 const center = box.getCenter(new THREE.Vector3());
                 const size   = box.getSize(new THREE.Vector3());
                 forkliftModel.position.sub(center);
- 
+
                 const dist = Math.max(size.x, size.y, size.z) * 1.6;
                 camera.position.set(dist, dist * 0.7, dist);
                 camera.lookAt(0, 0, 0);
                 controls.target.set(0, 0, 0);
                 controls.update();
- 
+
                 const dimensionMaxima = Math.max(size.x, size.y, size.z);
                 const radioProporcional = dimensionMaxima * 0.035;
- 
+
                 const pX = size.x;
                 const pY = size.y;
                 const pZ = size.z;
- 
+
                 // Ubicaciones de precisión acopladas al chasis
                 agregarPin3D('llantas',    pX * 0.32,  -pY * 0.20,   pZ * 0.15, 0x00adb5, radioProporcional); 
                 agregarPin3D('chasis',     0.0,         pY * 0.05,  -pZ * 0.12, 0x3f51b5, radioProporcional); 
                 agregarPin3D('mastil',     0.0,         pY * 0.08,   pZ * 0.30, 0xff9800, radioProporcional); 
                 agregarPin3D('unas',       0.0,        -pY * 0.32,   pZ * 0.46, 0xe91e63, radioProporcional); 
                 agregarPin3D('horometro',  0.0,         pY * 0.18,  -pZ * 0.02, 0x9c27b0, radioProporcional);
- 
+
                 status.innerText = "🎯 Sistema Activo — Selecciona un pin interactivo";
             }});
         }}, 50);
     }}
- 
+
     // FUNCIÓN CENTRAL DE ACTUALIZACIÓN DE DATOS (Conecta clics y buscador)
     function actualizarContenedorInformativo(clave) {{
         document.getElementById('selector-componente').value = clave;
@@ -290,33 +314,33 @@ three_js_interface = f"""
         }}
         status.innerText = "📍 Componente auditado: " + clave.toUpperCase();
     }}
- 
+
     function seleccionarDesdeMenu(val) {{
         actualizarContenedorInformativo(val);
     }}
- 
+
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
- 
+
     window.addEventListener('click', (event) => {{
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x =  ((event.clientX - rect.left) / rect.width)  * 2 - 1;
         mouse.y = -((event.clientY - rect.top)  / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, camera);
- 
+
         const impactos = raycaster.intersectObjects(listaPines);
         
         if (impactos.length > 0) {{
             const pinTocado = impactos[0].object;
             const clave = pinTocado.name;
- 
+
             pinTocado.material.opacity = 1.0;
             setTimeout(() => pinTocado.material.opacity = 0.85, 300);
- 
+
             actualizarContenedorInformativo(clave);
         }}
     }});
- 
+
     let tiempo = 0;
     (function animate() {{
         requestAnimationFrame(animate);
@@ -327,7 +351,7 @@ three_js_interface = f"""
         listaPines.forEach(pin => {{
             pin.scale.set(escalaPulsante, escalaPulsante, escalaPulsante);
         }});
- 
+
         renderer.render(scene, camera);
     }})();
     </script>
