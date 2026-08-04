@@ -14,7 +14,7 @@ st.markdown("Ecosistema de Mantenimiento 4.0. Haz clic en los **pines interactiv
 # =====================================================================
 # 1. CONEXIÓN EN VIVO A GOOGLE SHEETS + TRADUCCIÓN Y MÉTRICAS DINÁMICAS
 # =====================================================================
-@st.cache_data(ttl=30)  # Recarga automáticamente cada 30 segundos
+@st.cache_data(ttl=30)
 def cargar_historial_y_metricas():
     historial = {
         "default": {
@@ -26,8 +26,7 @@ def cargar_historial_y_metricas():
     ID_HOJA = "1uHS0iWNUf2ER5v67dQaoyM8284Ba5hUfEuKX7xt0lLQ" 
     SHEET_CSV_URL = f"https://docs.google.com/spreadsheets/d/{ID_HOJA}/export?format=csv"
     
-    # Valores por defecto para métricas
-    horometro_val = "1,482 Hrs"
+    horometro_val = "70,307 Hrs"
     total_reportes = 0
     pct_preventivo = "100%"
     
@@ -40,13 +39,11 @@ def cargar_historial_y_metricas():
 
         total_reportes = len(df)
         
-        # Extracción dinámica del último horómetro válido
         if 'HOROMETRO' in df.columns:
             horo_series = pd.to_numeric(df['HOROMETRO'], errors='coerce').dropna()
             if not horo_series.empty:
                 horometro_val = f"{horo_series.iloc[0]:,.0f} Hrs"
         
-        # Cálculo dinámico del % Preventivo vs Correctivo
         if 'ESTADO' in df.columns and total_reportes > 0:
             preventivos = df['ESTADO'].astype(str).str.upper().str.contains("PREV").sum()
             pct_preventivo = f"{(preventivos / total_reportes * 100):.0f}%"
@@ -55,7 +52,6 @@ def cargar_historial_y_metricas():
             parte_raw = str(fila.get('COMPONENTE', '')).strip().lower()
             parte = parte_raw.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('ñ', 'n')
             
-            # Mapeo de términos para homologación en español
             if parte in ['wheel', 'llantas', 'ruedas']:
                 parte = 'llantas'
             elif parte in ['mast', 'mastil']:
@@ -89,7 +85,7 @@ def cargar_historial_y_metricas():
                     "detalles": ""
                 }
             
-            linea_reporte = f"{estado} <b>{fecha}</b>: {descripcion} <br><small style='color:#64748b;'>👤 Operario: {tecnico}</small><br><br><hr style='border:0;border-top:1px dashed #e2e8f0;'>"
+            linea_reporte = f"{estado} <b style='color:#f8fafc;'>{fecha}</b>: <span style='color:#cbd5e1;'>{descripcion}</span><br><small style='color:#94a3b8;'>👤 Operario: {tecnico}</small><br><br><hr style='border:0;border-top:1px dashed #334155;'>"
             historial[parte]["detalles"] += linea_reporte
             
     except Exception as e:
@@ -110,10 +106,10 @@ if ruta_glb.exists():
         b64 = base64.b64encode(f.read()).decode("utf-8")
     glb_data_uri = f"data:model/gltf-binary;base64,{b64}"
 else:
-    st.error("⚠️ Archivo `static/forklift_low_poly.glb` no detectado. Asegúrate de colocarlo en el directorio correcto.")
+    st.error("⚠️ Archivo `static/forklift_low_poly.glb` no detectado.")
 
 # =====================================================================
-# 3. INTERFAZ INTEGRADA (THREE.JS + STREAMLIT COMPONENTS)
+# 3. INTERFAZ INTEGRADA (MODO OSCURO PRO)
 # =====================================================================
 three_js_interface = f"""
 <!DOCTYPE html>
@@ -124,45 +120,45 @@ three_js_interface = f"""
         body {{
             margin: 0; padding: 0; overflow: hidden;
             font-family: 'Segoe UI', system-ui, sans-serif;
-            background: #f1f5f9; display: flex;
+            background: #0e1117; display: flex; color: #f8fafc;
         }}
-        #canvas-container {{ width: 65%; height: 620px; position: relative; }}
+        #canvas-container {{ width: 65%; height: 620px; position: relative; background: #0e1117; }}
         #sidebar-panel {{
-            width: 35%; height: 620px; background: #ffffff;
-            box-shadow: -5px 0 20px rgba(0,0,0,0.05); padding: 25px;
-            box-sizing: border-box; overflow-y: auto; border-left: 2px solid #e2e8f0;
+            width: 35%; height: 620px; background: #161b26;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.5); padding: 25px;
+            box-sizing: border-box; overflow-y: auto; border-left: 1px solid #262730;
         }}
         
-        /* Estilos de Indicadores Métricos */
+        /* Estilos de Indicadores Métricos Oscuros */
         .metrics-container {{ display: flex; gap: 10px; margin-bottom: 20px; margin-top: 10px; }}
         .metric-card {{
-            flex: 1; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;
+            flex: 1; background: #1e2430; padding: 12px; border-radius: 8px; border: 1px solid #2d3748;
         }}
-        .metric-label {{ font-size: 11px; color: #64748b; font-weight: 600; }}
-        .metric-value {{ font-size: 20px; font-weight: bold; color: #0f172a; margin: 4px 0; }}
-        .metric-delta {{ font-size: 10px; color: #16a34a; background: #dcfce7; display: inline-block; padding: 2px 5px; border-radius: 4px; font-weight: 500; }}
+        .metric-label {{ font-size: 11px; color: #94a3b8; font-weight: 600; }}
+        .metric-value {{ font-size: 20px; font-weight: bold; color: #f8fafc; margin: 4px 0; }}
+        .metric-delta {{ font-size: 10px; color: #4ade80; background: rgba(74, 222, 128, 0.15); display: inline-block; padding: 2px 5px; border-radius: 4px; font-weight: 500; }}
         
         /* Buscador manual */
-        .selector-label {{ font-size: 13px; font-weight: 600; color: #475569; display: block; margin-bottom: 6px; }}
+        .selector-label {{ font-size: 13px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 6px; }}
         .custom-select {{
-            width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff;
-            font-size: 14px; color: #334155; margin-bottom: 20px; outline: none; transition: border 0.2s;
+            width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background-color: #1e2430;
+            font-size: 14px; color: #f8fafc; margin-bottom: 20px; outline: none; transition: border 0.2s;
         }}
         .custom-select:focus {{ border-color: #6366f1; }}
 
-        /* Tarjeta de Historial */
+        /* Tarjeta de Historial Oscura */
         .history-box {{
-            background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; min-height: 200px;
+            background: #1e2430; padding: 20px; border-radius: 8px; border: 1px solid #2d3748; min-height: 200px;
         }}
         .badge {{
-            background: #0f172a; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px;
+            background: #6366f1; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px;
         }}
-        h3 {{ color: #0f172a; margin-top: 12px; font-size: 18px; }}
-        h4 {{ color: #0f172a; margin: 0 0 10px 0; font-size: 16px; }}
-        p {{ color: #334155; line-height: 1.6; font-size: 14px; margin: 0; }}
+        h3 {{ color: #f8fafc; margin-top: 12px; font-size: 18px; }}
+        h4 {{ color: #f8fafc; margin: 0 0 10px 0; font-size: 16px; }}
+        p {{ color: #cbd5e1; line-height: 1.6; font-size: 14px; margin: 0; }}
         #status {{
-            position: absolute; bottom: 15px; left: 15px; background: rgba(15, 23, 42, 0.9); color: #fff;
-            padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 11px; pointer-events: none; z-index: 10;
+            position: absolute; bottom: 15px; left: 15px; background: rgba(15, 23, 42, 0.9); color: #38bdf8;
+            padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 11px; pointer-events: none; z-index: 10; border: 1px solid #0284c7;
         }}
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -194,7 +190,7 @@ three_js_interface = f"""
             </div>
         </div>
         
-        <hr style="border:0; border-top:1px solid #e2e8f0; margin:20px 0;">
+        <hr style="border:0; border-top:1px solid #2d3748; margin:20px 0;">
         
         <label class="selector-label">🔎 Buscar componente manualmente:</label>
         <select id="selector-componente" class="custom-select" onchange="seleccionarDesdeMenu(this.value)">
@@ -209,7 +205,7 @@ three_js_interface = f"""
         <div class="history-box">
             <span class="badge">HISTORIAL EN VIVO</span>
             <h3 id="part-title">Instrucciones del Gemelo Digital</h3>
-            <hr style="border:0; border-top:1px solid #e2e8f0; margin:12px 0;">
+            <hr style="border:0; border-top:1px solid #2d3748; margin:12px 0;">
             <div id="part-details">
                 <p>Selecciona cualquiera de los pines flotantes sobre el montacargas para desplegar las órdenes de servicio de planta en tiempo real.</p>
             </div>
@@ -222,7 +218,8 @@ three_js_interface = f"""
     const status    = document.getElementById('status');
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf8fafc);
+    scene.background = new THREE.Color(0x0e1117); // Fondo 3D oscuro alineado a Streamlit
+    
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / 620, 0.01, 10000);
 
     const renderer = new THREE.WebGLRenderer({{ antialias: true }});
@@ -233,10 +230,15 @@ three_js_interface = f"""
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    dirLight.position.set(10, 20, 15);
-    scene.add(dirLight);
+    // Iluminación optimizada para realzar detalles sobre fondo oscuro
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight1.position.set(10, 20, 15);
+    scene.add(dirLight1);
+    
+    const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.4); // Luz de acento azulada
+    dirLight2.position.set(-10, -10, -10);
+    scene.add(dirLight2);
 
     let forkliftModel = null;
     const loader = new THREE.GLTFLoader();
@@ -245,7 +247,7 @@ three_js_interface = f"""
 
     function agregarPin3D(idComponente, x, y, z, colorHex, rPin) {{
         const geo = new THREE.SphereGeometry(rPin, 16, 16);
-        const mat = new THREE.MeshBasicMaterial({{ color: colorHex, transparent: true, opacity: 0.85 }});
+        const mat = new THREE.MeshBasicMaterial({{ color: colorHex, transparent: true, opacity: 0.9 }});
         const pin = new THREE.Mesh(geo, mat);
         pin.position.set(x, y, z);
         pin.name = idComponente;
@@ -282,19 +284,17 @@ three_js_interface = f"""
                 const pY = size.y;
                 const pZ = size.z;
 
-                // Ubicaciones de precisión acopladas al chasis
-                agregarPin3D('llantas',    pX * 0.32,  -pY * 0.20,   pZ * 0.15, 0x00adb5, radioProporcional); 
-                agregarPin3D('chasis',     0.0,         pY * 0.05,  -pZ * 0.12, 0x3f51b5, radioProporcional); 
-                agregarPin3D('mastil',     0.0,         pY * 0.08,   pZ * 0.30, 0xff9800, radioProporcional); 
-                agregarPin3D('unas',       0.0,        -pY * 0.32,   pZ * 0.46, 0xe91e63, radioProporcional); 
-                agregarPin3D('horometro',  0.0,         pY * 0.18,  -pZ * 0.02, 0x9c27b0, radioProporcional);
+                agregarPin3D('llantas',    pX * 0.32,  -pY * 0.20,   pZ * 0.15, 0x00f2fe, radioProporcional); 
+                agregarPin3D('chasis',     0.0,         pY * 0.05,  -pZ * 0.12, 0x3b82f6, radioProporcional); 
+                agregarPin3D('mastil',     0.0,         pY * 0.08,   pZ * 0.30, 0xf59e0b, radioProporcional); 
+                agregarPin3D('unas',       0.0,        -pY * 0.32,   pZ * 0.46, 0xec4899, radioProporcional); 
+                agregarPin3D('horometro',  0.0,         pY * 0.18,  -pZ * 0.02, 0xa855f7, radioProporcional);
 
                 status.innerText = "🎯 Sistema Activo — Selecciona un pin interactivo";
             }});
         }}, 50);
     }}
 
-    // FUNCIÓN CENTRAL DE ACTUALIZACIÓN DE DATOS (Conecta clics y buscador)
     function actualizarContenedorInformativo(clave) {{
         document.getElementById('selector-componente').value = clave;
         
@@ -310,7 +310,7 @@ three_js_interface = f"""
                 'horometro': '⏱️ Horómetro y Tablero Digital'
             }};
             document.getElementById('part-title').innerText   = titulosAlternativos[clave] || "Componente";
-            document.getElementById('part-details').innerHTML = "<i>No se registran órdenes de servicio activas para esta sección en Google Sheets.</i>";
+            document.getElementById('part-details').innerHTML = "<i style='color:#94a3b8;'>No se registran órdenes de servicio activas para esta sección en Google Sheets.</i>";
         }}
         status.innerText = "📍 Componente auditado: " + clave.toUpperCase();
     }}
@@ -335,7 +335,7 @@ three_js_interface = f"""
             const clave = pinTocado.name;
 
             pinTocado.material.opacity = 1.0;
-            setTimeout(() => pinTocado.material.opacity = 0.85, 300);
+            setTimeout(() => pinTocado.material.opacity = 0.9, 300);
 
             actualizarContenedorInformativo(clave);
         }}
@@ -359,5 +359,4 @@ three_js_interface = f"""
 </html>
 """
 
-# Renderizado de la aplicación unificada
 components.html(three_js_interface, height=630)
