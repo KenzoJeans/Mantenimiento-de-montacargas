@@ -72,6 +72,38 @@ def limpiar_numero(valor) -> float | None:
     return float(solo_digitos)
  
  
+# Nombre EXACTO de la pregunta "Subir archivos" en el formulario. Si
+# cambias el texto de la pregunta en Google Forms, el encabezado de la
+# columna en la hoja cambia también, y hay que actualizarlo aquí.
+COLUMNA_FOTO = "EVIDENCIA DEL MANTENIMIENTO"
+ 
+ 
+def _extraer_id_drive(url: str) -> str | None:
+    m = re.search(r"[?&]id=([\w-]+)", url) or re.search(r"/d/([\w-]+)", url)
+    return m.group(1) if m else None
+ 
+ 
+def extraer_urls_fotos(valor_crudo) -> list[str]:
+    """Convierte lo que Google Forms guarda para una pregunta de 'Subir
+    archivos' (uno o varios links de Drive separados por coma) en URLs
+    de miniatura que sí se pueden usar directamente en un <img src=...>.
+    Cualquier valor que no sea un link real de Drive se descarta."""
+    if valor_crudo is None:
+        return []
+    texto = str(valor_crudo).strip()
+    if not texto or texto.lower() == "nan":
+        return []
+    urls = []
+    for enlace in texto.split(","):
+        enlace = enlace.strip()
+        if not enlace.startswith("https://drive.google.com"):
+            continue
+        file_id = _extraer_id_drive(enlace)
+        if file_id:
+            urls.append(f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000")
+    return urls
+ 
+ 
 # =====================================================================
 # 1. CONEXIÓN EN VIVO A GOOGLE SHEETS + TRADUCCIÓN Y MÉTRICAS DINÁMICAS
 # =====================================================================
@@ -143,14 +175,31 @@ def cargar_historial_y_metricas():
             else:
                 estado = "🟢 " + html.escape(estado_raw)
  
+            # Evidencia fotográfica: cada foto se muestra como miniatura
+            # clicable (abre el tamaño real en una pestaña nueva). Las
+            # URLs ya vienen validadas (solo links reales de Drive), pero
+            # igual se escapan al insertarlas por seguridad.
+            urls_fotos = extraer_urls_fotos(fila.get(COLUMNA_FOTO, ""))
+            fotos_html = ""
+            if urls_fotos:
+                miniaturas = "".join(
+                    f"<a href='{html.escape(u)}' target='_blank' rel='noopener'>"
+                    f"<img src='{html.escape(u)}' loading='lazy' "
+                    f"style='width:88px;height:88px;object-fit:cover;border-radius:6px;"
+                    f"margin:6px 6px 0 0;border:1px solid #334155;'></a>"
+                    for u in urls_fotos
+                )
+                fotos_html = f"<div>{miniaturas}</div>"
+ 
             if parte not in historial:
                 historial[parte] = {"titulo": nombre_visible, "detalles": ""}
  
             linea_reporte = (
                 f"{estado} <b style='color:#f8fafc;'>{fecha}</b>: "
                 f"<span style='color:#cbd5e1;'>{descripcion}</span><br>"
-                f"<small style='color:#94a3b8;'>👤 Operario: {tecnico}</small><br><br>"
-                f"<hr style='border:0;border-top:1px dashed #334155;'>"
+                f"<small style='color:#94a3b8;'>👤 Operario: {tecnico}</small>"
+                f"{fotos_html}"
+                f"<br><br><hr style='border:0;border-top:1px dashed #334155;'>"
             )
             historial[parte]["detalles"] += linea_reporte
  
@@ -376,7 +425,7 @@ three_js_interface = f"""
  
         // Distancia de acercamiento proporcional al tamaño del modelo,
         // más cerca que la vista general pero sin "meterse" en la geometría.
-        const distanciaAcercamiento = distanciaGeneral * 0.8;
+        const distanciaAcercamiento = distanciaGeneral * 0.4;
         const direccion = new THREE.Vector3(0.9, 0.55, 0.9).normalize();
         const posicionObjetivo = pin.position.clone().add(direccion.multiplyScalar(distanciaAcercamiento));
  
