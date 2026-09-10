@@ -376,7 +376,7 @@ three_js_interface = f"""
  
         // Distancia de acercamiento proporcional al tamaño del modelo,
         // más cerca que la vista general pero sin "meterse" en la geometría.
-        const distanciaAcercamiento = distanciaGeneral * 0.2;
+        const distanciaAcercamiento = distanciaGeneral * 0.8;
         const direccion = new THREE.Vector3(0.9, 0.55, 0.9).normalize();
         const posicionObjetivo = pin.position.clone().add(direccion.multiplyScalar(distanciaAcercamiento));
  
