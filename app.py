@@ -8,9 +8,9 @@ import pandas as pd
 import json
 
 # Configuración de la interfaz de Streamlit
-st.set_page_config(page_title="Forklift Twin Pro", layout="wide", page_icon="🚜")
+st.set_page_config(page_title="MANTENIMIENTO DE MONTACARGAS", layout="wide", page_icon="🚜")
 
-st.title("🚜 Gemelo Digital Operacional - Montacargas Pro")
+st.title("🚜MANTENIMIENTO DE MONTACARGAS")
 st.markdown("Ecosistema de Mantenimiento 4.0. Haz clic en los **pines interactivos** del modelo 3D para auditar los reportes en tiempo real.")
 
 # =====================================================================
